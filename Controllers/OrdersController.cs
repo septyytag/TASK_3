@@ -63,13 +63,14 @@ public class OrdersController(ShopContext db) : ControllerBase
             return NotFound();
 
         // Подсказка: Код выполняется сверху вниз. Перенеси эти строчки кода в нужное место.
-        order.Status = status;
-        db.SaveChanges();
+     
 
         string[] statuses = ["Новый", "Оплачен", "Доставлен", "Отменён"];
         if (!statuses.Contains(status))
             return BadRequest("Нет такого статуса");
 
+        order.Status = status;
+        db.SaveChanges();
         return order;
     }
 
@@ -99,19 +100,21 @@ public class OrdersController(ShopContext db) : ControllerBase
             if (product == null)
                 return BadRequest($"Нет товара с номером {line.ProductId}");
             // Подсказка: Пользователь может прислать количество (Quantity) 0 или отрицательное. Добавь проверку
-            if (product.Stock <= line.Quantity)
+            if (product.Stock < line.Quantity)
                 return BadRequest($"Не хватает товара «{product.Name}»");
+            if (line.Quantity <= 0)
+                return BadRequest("Количество товара должно быть положительным");
 
-            order.Items.Add(new OrderItem
+           order.Items.Add(new OrderItem
             {
                 ProductId = product.Id,
                 Quantity = line.Quantity,
-                Price = product.Price * line.Quantity, // Подсказка: Нам не нужно считать общую стоимость. Price - цена ОДНОГО товара
+                Price = product.Price // Подсказка: Нам не нужно считать общую стоимость. Price - цена ОДНОГО товара
             });
             product.Stock -= line.Quantity;
-            db.SaveChanges(); // Подсказка: Сохранять изменения после каждого товара - очень неоптимизированно и несёт за собой ошибки в будущем
+            // Подсказка: Сохранять изменения после каждого товара - очень неоптимизированно и несёт за собой ошибки в будущем
         }
-
+        db.SaveChanges();
         return Created($"/orders/{order.Id}", order);
     }
 }
