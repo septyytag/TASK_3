@@ -15,7 +15,7 @@ builder.Services.AddSwaggerGen();
 // Подключение к базе shop. Строка подключения с паролем — в секретах пользователя (README, шаг 3).
 // UseSnakeCaseNamingConvention: свойство CategoryId в C# — это столбец category_id в базе
 builder.Services.AddDbContext<ShopContext>(o => o
-    .UseNpgsql(builder.Configuration.GetConnectionString("Shop"))
+    .UseNpgsql("Host=localhost;Port=5432;Database=shop;Username=postgres;Password=bs14n120410")
     .UseSnakeCaseNamingConvention());
 
 var app = builder.Build();

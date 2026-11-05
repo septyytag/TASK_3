@@ -11,19 +11,19 @@ public class ProductsController(ShopContext db) : ControllerBase
     [HttpGet]
     public List<Product> GetAll()
     {
-        return db.Products.OrderBy(p => p.Id).ToList()
+        return db.Products.OrderBy(p => p.Id).ToList();
     }
 
     // Задание 1. GET /products/{id} — ОДИН товар. Если такого товара нет — 404
     // Подсказка: List<...> внутри ActionResult<...> означает, что ожидается НЕСКОЛЬКО объектов в ответе.
     // Подсказка: Посмотри, как написан метод Create в этом файле (написано Задание 8)
     [HttpGet("{id}")]
-    public ActionResult<List<Product>> Get(string id)
+    public ActionResult<Product> Get(int id)
     {
         var product = db.Products.Find(id);
         if (product == null) return NotFound();
 
-        return product;
+        return Ok(product);
     }
 
     // Задание 2. GET /products/cheap?max=500 — товары, которые есть на складе И стоят не дороже max.
@@ -35,7 +35,7 @@ public class ProductsController(ShopContext db) : ControllerBase
     {
         return db.Products
             .Where(p => p.Stock > 0 || p.Price <= max)
-            .OrderByDescending(p => p.Price) // Подсказка: Эта строка
+            .OrderBy(p => p.Price) // Подсказка: Эта строка
             .ToList();
     }
 
@@ -47,9 +47,9 @@ public class ProductsController(ShopContext db) : ControllerBase
     private string? Check(Product p)
     {
         if (string.IsNullOrWhiteSpace(p.Name)) return "Название не может быть пустым"; // null - значения нет. whiteSpace - значение пустое ""
-        if (p.Price < 0) return "Цена должна быть больше нуля";
+        if (p.Price <= 0) return "Цена должна быть больше нуля";
         if (p.Stock < 0) return "Остаток не может быть меньше нуля";
-        if (db.Categories.Any(c => c.Id == p.CategoryId)) return "Нет такой категории"; // Подсказка: Проверь условие
+        if (!db.Categories.Any(c => c.Id == p.CategoryId)) return "Нет такой категории"; // Подсказка: Проверь условие
 
         return null;
     }
@@ -65,7 +65,7 @@ public class ProductsController(ShopContext db) : ControllerBase
             return BadRequest(error);
 
         db.Products.Add(p);
-        // Что-то нужно добавить...
+        db.SaveChanges();
         return Created($"/products/{p.Id}", p);
     }
 
@@ -75,7 +75,7 @@ public class ProductsController(ShopContext db) : ControllerBase
     {
         var product = db.Products.Find(id);
         // Подсказка: что-то тут не так...
-        if (product != null)
+        if (product == null)
             return NotFound();
 
         var error = Check(input);
@@ -86,7 +86,7 @@ public class ProductsController(ShopContext db) : ControllerBase
         product.Name = input.Name;
         product.CategoryId = input.CategoryId;
         product.Price = input.Price;
-        product.Stock = input.Price;
+        product.Stock = input.Stock;
 
         db.SaveChanges();
         return product;
@@ -102,6 +102,10 @@ public class ProductsController(ShopContext db) : ControllerBase
         var product = db.Products.Find(id);
         if (product == null)
             return NotFound();
+       
+        db.Products.Remove(product);
+        if (db.OrderItems.Any(oi => oi.ProductId == id))
+            return Conflict("Товар, который есть в заказах, удалять нельзя — 409");
 
         db.Products.Remove(product);
         db.SaveChanges();
